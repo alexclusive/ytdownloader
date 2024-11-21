@@ -1,5 +1,7 @@
 # YTDownloader
 
+Yes ChatGPT made this whole thing, don't @ me  
+
 **YTDownloader** is a Python script that allows you to download YouTube videos and playlists in either MP3 (audio) or MP4 (video) formats using `yt-dlp`. It supports setting custom metadata (like title, album, and year) for both audio and video files.
 
 ## Features
