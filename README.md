@@ -15,7 +15,7 @@ Yes ChatGPT made this whole thing, don't @ me
 
 ### Options:
 ```bash
-Usage: python script.py [OPTIONS]
+Usage: py cmdLine.py [OPTIONS]
 
 OPTIONS:
   -p, --playlist        <URL>   Download all videos from a YouTube playlist.
@@ -32,20 +32,20 @@ NOTES:
 
 EXAMPLES:
   1. Download a playlist as MP3:
-     python script.py -p <playlist_url> -a
+     py cmdLine.py -p <playlist_url> -a
 
   2. Download a single video as MP4 to a specific folder:
-     python script.py -s <video_url> -v -o /path/to/downloads
+     py cmdLine.py -s <video_url> -v -o /path/to/downloads
 
   3. Download a playlist as MP3 with a custom name:
-     python script.py -p <playlist_url> -a -n "My Playlist"
+     py cmdLine.py -p <playlist_url> -a -n "My Playlist"
 
   4. Download a single video as MP3 with metadata year 2023:
-     python script.py -s <video_url> -a -y 2023
+     py cmdLine.py -s <video_url> -a -y 2023
 ```
 
 ## Compilation
-If you'd like to convert this Python script into a standalone executable, you can use PyInstaller. Follow the steps below to compile the script.
+If you'd like to convert this Python script into a standalone executable, you can use PyInstaller. Follow the steps below to compile the cmdLine.py
 
 ### Step 1: Install PyInstaller
 First, you need to install `PyInstaller`. Run the following command in your terminal or command prompt:
@@ -55,13 +55,13 @@ pip install pyinstaller
 ```
 
 ### Step 2: Prepare the Script
-Ensure your script (e.g. `script.py`) is working properly. Test it by running it in your terminal with various options to make sure there are no errors.
+Ensure your script (e.g. `cmdLine.py`) is working properly. Test it by running it in your terminal with various options to make sure there are no errors.
 
 ### Step 3: Compile the Script into an Executable
 Run the following command to compile the Python script into a single executable file:
 
 ```bash
-pyinstaller --onefile --name YTDownloader script.py
+pyinstaller --onefile --name YTDownloader cmdLine.py
 ```
 
 ### Step 4: Locate the Executable
