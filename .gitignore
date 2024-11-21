@@ -1,0 +1,8 @@
+# Ignore the downloads folder
+downloads/
+
+# Ignore PyInstaller crap
+build/
+__pycache__/
+*.pyc
+*.spec
