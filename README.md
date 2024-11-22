@@ -1,80 +1,72 @@
 # YTDownloader
+I made this python application because I'm sick and tired of all those dumb websites that are terrible at the one thing they set out to do. Turns out it's actually realy easy to download youtube videos. I haven't actually tested the max quality this is capable of - one way to find out!  
 
-Yes ChatGPT made this whole thing, don't @ me  
+## Ways to Run
+There are two versions packed into one .exe file: command-line and gui. These both do the same thing, and I'll explain each feature a little later.
 
-**YTDownloader** is a Python script that allows you to download YouTube videos and playlists in either MP3 (audio) or MP4 (video) formats using `yt-dlp`. It supports setting custom metadata (like title, album, and year) for both audio and video files.
+### Command-line
+To run this version of the program, run the program with more than zero command line arguments (e.g. `-h`).
 
-## Features
-- Download YouTube playlists or single videos.
-- Download as MP3 (audio only) or MP4 (video).
-- Set custom metadata for audio (MP3) and video (MP4) files.
-- Customize download folder and metadata attributes such as title and year.
-- Easily compile the script into an executable with `pyinstaller`.
-
-## Usage
-
-### Options:
-```bash
-Usage: py cmdLine.py [OPTIONS]
+#### Usage
+```apache
+Usage: ./YTDownloader.exe [-h] [-a ALBUM] [-A ARTIST] [-c CHAPTER] [-C] [-i ICON] [-n NAME] [-o OUTPUT] [-u URL] [-v] [-y YEAR]
+To run using a GUI, run with no command line arguments
 
 OPTIONS:
-  -p, --playlist        <URL>   Download all videos from a YouTube playlist.
-  -s, --single-video    <URL>   Download a single YouTube video.
-  -a, --audio                   Download as MP3 (audio only).
-  -v, --video                   Download as MP4 (video).
+  -a, --album           <NAME>  Album name for folder and metadata.
+  -A, --artist          <NAME>  Artist name for metadata.
+  -c, --chapter         <NUM>   Chapter number for non-playlist downloads.
+  -C, --set-chapters            Set chapters for metadata for MP3s in playlists.
+  -i, --icon            <PATH>  Path to ico/png/jpg/jpeg file to use as file icon/s
   -o, --output          <PATH>  Base output folder (default: downloads/audio or downloads/video).
-  -n, --name            <NAME>  Custom name for the output folder and metadata.
-  -y, --year            <YEAR>  Year to include in metadata (e.g., 2023).
-  
-NOTES:
-  - At least one of -a (audio) or -v (video) must be specified.
-  - For playlists, you can omit -n to use the YouTube playlist title as the folder name.
-
-EXAMPLES:
-  1. Download a playlist as MP3:
-     py cmdLine.py -p <playlist_url> -a
-
-  2. Download a single video as MP4 to a specific folder:
-     py cmdLine.py -s <video_url> -v -o /path/to/downloads
-
-  3. Download a playlist as MP3 with a custom name:
-     py cmdLine.py -p <playlist_url> -a -n "My Playlist"
-
-  4. Download a single video as MP3 with metadata year 2023:
-     py cmdLine.py -s <video_url> -a -y 2023
+  -u  --url             <URL>   URL for youtube video or playlist.
+  -v, --video                   Download as MP4 instead of MP3.
+  -y, --year            <YEAR>  Year to include in the metadata.
 ```
+
+### GUI
+To run using a GUI, run with no command line arguments. I made two versions of this because my friend liked the retro look.  
+
+#### Retro
+![image](./assets/ui_retro.png)
+
+#### Updated
+tbd
+<!-- TODO: picture of normal version -->
+
+## Functionality
+There are quite a few functions that the script can handle, most of them are optional. However, you will need to give a URL and filetype.
+
+### Required
+#### URL
+The URL can be given for a single video, or for an entire playlist. The application will figure out which one you've given, so there's no need to have an option for it.  
+Command line option: `-u <URL>` or `--url <URL>`
+
+#### Filetype
+You need to set if you want to download as MP3 (audio), or MP4 (video). In the GUI, you can select the filetype by clicking the different buttons for `Download MP3` or `Download MP4`. To download as MP4 in command-line, provide the `-v` or `--video` option. The command-line application will download as MP3 if no `video` flag is set.
+
+### Optional - General
+#### Output Directory
+
+#### Album
+
+#### Artist
+
+#### Year
+
+#### Icon
+
+### Optional - Playlists
+#### Set Chapters
+
+### Optional - Non-Playlists
+#### Chapter
 
 ## Compilation
-If you'd like to convert this Python script into a standalone executable, you can use PyInstaller. Follow the steps below to compile the cmdLine.py
-
-### Step 1: Install PyInstaller
-First, you need to install `PyInstaller`. Run the following command in your terminal or command prompt:
+If you want to take the python code and build it in to an executable (useful if you wanna make some changes of your own), you can use PyInstaller - `pip install pyinstaller`. Here is a basic command you can use to compile:  
 
 ```bash
-pip install pyinstaller
+pyinstaller --onefile --name YTDownloader downloader.py
 ```
 
-### Step 2: Prepare the Script
-Ensure your script (e.g. `cmdLine.py`) is working properly. Test it by running it in your terminal with various options to make sure there are no errors.
-
-### Step 3: Compile the Script into an Executable
-Run the following command to compile the Python script into a single executable file:
-
-```bash
-pyinstaller --onefile --name YTDownloader cmdLine.py
-```
-
-### Step 4: Locate the Executable
-After PyInstaller completes the compilation process, the executable file will be located in the `dist/` folder inside your project directory. The executable will have the name you specified, like `YTDownloader` (on Windows, it will be `YTDownloader.exe`).
-
-### Step 5: Run the Executable
-You can now run the executable directly from the command line:
-
-```bash
-./dist/YTDownloader [OPTIONS]
-```
-Or, on Windows:
-
-```bash
-dist\YTDownloader.exe [OPTIONS]
-```
+This will give you an executable called `YTDownloader.exe` and put it into the `dist` folder.
