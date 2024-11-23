@@ -1,16 +1,16 @@
-import os
 import argparse
+import eyed3
+import io
+import json
+from mutagen.mp4 import MP4, MP4Tags, MP4Cover
+import os
+from PIL import Image, ImageTk
+import re
+import requests
 import subprocess
 import sys
-import re
-import json
-import eyed3
-from mutagen.mp4 import MP4, MP4Tags, MP4Cover
-from PIL import Image, ImageTk
-from typing import Callable
 import threading
-import requests
-import io
+from typing import Callable
 
 using_gui = False
 
@@ -273,9 +273,8 @@ def is_playlist(url) -> bool:
 
 def gui():
     import tkinter as tk
-    from tkinter import ttk
+    from tkinter import ttk, filedialog
     from datetime import datetime
-    from tkinter import filedialog
 
     def start_download(is_mp3:bool):
         def run_download():

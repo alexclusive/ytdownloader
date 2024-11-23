@@ -1,3 +1,4 @@
-yt-dlp
-eyed3
-mutagen
+Pillow==9.3.0
+eyed3==0.9.7
+mutagen==1.46.0
+requests==2.31.0
