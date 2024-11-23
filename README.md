@@ -1,5 +1,5 @@
 # YTDownloader
-I made this python application because I'm sick and tired of all those dumb websites that are terrible at the one thing they set out to do. Turns out it's actually realy easy to download youtube videos. I haven't actually tested the max quality this is capable of - one way to find out!  
+I made this python application because I'm sick and tired of all those dumb websites that are terrible at the one thing they set out to do. Turns out it's actually really easy to download youtube videos. I haven't actually tested the max quality this is capable of - one way to find out!  
 
 ## Ways to Run
 There are two versions packed into one .exe file: command-line and gui. These both do the same thing, and I'll explain each feature a little later.  
