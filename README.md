@@ -49,12 +49,12 @@ You need to set if you want to download as MP3 (audio), or MP4 (video). In the G
 
 ### Optional - General
 #### Output Directory
-Where to download the MP3/MP4 file/s to. If not specified, will create a `downloads` directory and download into there, with subdirectories for `audio` or `video`.  
+Where to download the MP3/MP4 file/s to. If not specified, will create a `downloads` directory and download into there, with subdirectories for `audio` or `video`. If a path is given, no additional subdirectories are created.  
 Command line option: `-o <PATH>` or `--output <PATH>`  
 <img src="./assets/readme/ui_directory.png" width=400>
 
 #### Album
-What to set the `album` metadata to. Also will group downloads into a subdirectory with the same name as the album.  
+What to set the `album` metadata to. Also will group downloads into a subdirectory with the same name as the album - unless an output directory is specified.  
 Command line option: `-a <NAME>` or `--album <NAME>`  
 <img src="./assets/readme/ui_album.png" width=400>
 

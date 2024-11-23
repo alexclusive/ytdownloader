@@ -14,15 +14,28 @@ from typing import Callable
 
 using_gui = False
 
+def sanitise_text(text):
+    return re.sub(r'[<>:"/\\|?*]', '_', text)
+
+def convert_ico_to_png(ico_path):
+    try:
+        img = Image.open(ico_path)
+        png_path = ico_path.replace(".ico", ".png")
+        img.save(png_path, format="PNG")
+        return png_path
+    except Exception as e:
+        log_progress(0, 0, f"Failed converting .ico to .png. {e}", "")
+        return None
+
 def resource_path(relative_path):
     try:
         base_path = sys._MEIPASS
     except AttributeError: # MEIPASS is only set by pyinstaller, this is so it can run without being compiled
         base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
-    full_path = os.path.join(base_path, relative_path)
-
-    return full_path
+def is_playlist(url) -> bool:
+    return "playlist" in url
 
 def log_progress(item_num, total_items, state, title):
     if not using_gui:
@@ -35,18 +48,6 @@ def log_progress(item_num, total_items, state, title):
         sys.stdout.flush()
         if "Completed" in state or "Fail" in state:
             print()
-
-def get_video_title(video_url):
-    try:
-        command = ["yt-dlp", "-e", video_url]  # The '-e' option extracts the video title
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        title = result.stdout.strip()
-        return title
-    except subprocess.CalledProcessError:
-        return "Unknown"
-
-def sanitise_text(text):
-    return re.sub(r'[<>:"/\\|?*]', '_', text)
 
 def determine_output_folder(output_folder, album=None, is_mp3:bool=False):
     base_folder = "downloads/video"
@@ -61,15 +62,14 @@ def determine_output_folder(output_folder, album=None, is_mp3:bool=False):
         os.makedirs(base_folder)
     return base_folder
 
-def convert_ico_to_png(ico_path):
+def get_video_title(video_url):
     try:
-        img = Image.open(ico_path)
-        png_path = ico_path.replace(".ico", ".png")
-        img.save(png_path, format="PNG")
-        return png_path
-    except Exception as e:
-        log_progress(0, 0, f"Failed converting .ico to .png. {e}", "")
-        return None
+        command = ["yt-dlp", "-e", video_url]  # The '-e' option extracts the video title
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        title = result.stdout.strip()
+        return title
+    except subprocess.CalledProcessError:
+        return "Unknown"
 
 def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, artist=None, year=None, icon_path=None):
     try:
@@ -80,35 +80,34 @@ def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, art
                 return
             audiofile:eyed3.AudioFile = audiofile_tmp
             if audiofile.tag is None:
-                audiofile.initTag()
-
+                audiofile.initTag(version=(2, 3, 0))
+            
             audiofile.tag.title = title
             if album:
                 audiofile.tag.album = album
             if chapter:
-                audiofile.tag.track = chapter
+                audiofile.tag.setTextFrame("TRCK", f"{chapter}/0")
             if artist:
                 audiofile.tag.artist = artist
             if year:
                 audiofile.tag.recording_date = eyed3.core.Date(year)
-
             if icon_path and os.path.exists(icon_path):
                 temp_icon_path = None
                 if icon_path.lower().endswith(".ico"):
                     temp_icon_path = convert_ico_to_png(icon_path)
-                    icon_path = temp_icon_path  # Use the converted .png file
-                if icon_path and os.path.exists(icon_path):  # Ensure conversion succeeded
+                    icon_path = temp_icon_path
+                if icon_path and os.path.exists(icon_path): # Ensure conversion worked
                     with open(icon_path, "rb") as img_file:
                         image_data = img_file.read()
-                    audiofile.tag.images.set(
-                        eyed3.id3.frames.ImageFrame.FRONT_COVER,
-                        image_data,
-                        "image/jpeg" if icon_path.lower().endswith(".jpg") else "image/png"
-                    )
+                    if isinstance(image_data, bytes):
+                        audiofile.tag.images.set(
+                            eyed3.id3.frames.ImageFrame.FRONT_COVER,
+                            image_data,
+                            "image/jpeg" if icon_path.lower().endswith(".jpg") else "image/png"
+                        )
                 if temp_icon_path and os.path.exists(temp_icon_path):
                     os.remove(temp_icon_path)
-
-            audiofile.tag.save()
+            audiofile.tag.save(version=(2, 3, 0))
         else:
             video_file = MP4(file_path)
             if video_file.tags is None:
@@ -248,13 +247,13 @@ def get_playlist_urls(playlist_url) -> list[str]:
 def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None, year=None, set_chapters=False, icon_path=None, set_progress_function:Callable=None):
     if not album:
         album = get_playlist_title(url)
-    output_dir = determine_output_folder(output_dir, album)
+        output_dir = determine_output_folder(output_dir, album, dl_mp3)
+
     urls = get_playlist_urls(url)
     if not urls:
         return
     
     total_items = len(urls)
-    
     for num, url in enumerate(urls, start=1):
         if set_progress_function:
             set_progress_function(f"{num} of {total_items}")
@@ -268,8 +267,35 @@ def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None,
         else:
             download_mp4(url, output_dir, num, total_items, album, chap, artist, year, icon_path)
 
-def is_playlist(url) -> bool:
-    return "playlist" in url
+def read_inputs(url, is_mp3, output_dir_=None, album_=None, artist_=None, year_=None, chapter_=None, set_chapters_=None, icon_=None, set_progress_:Callable=None):
+    output_dir = determine_output_folder(output_dir_, album_, is_mp3)
+    album = None
+    if album_:
+        album = album_
+    if is_playlist(url):
+        if not album_:
+            album = get_playlist_title(url)
+        process_playlist(url, output_dir, is_mp3, album, artist_, year_, set_chapters_, icon_, set_progress_)
+        if set_progress_:
+            set_progress_("Downloaded")
+    elif is_mp3:
+        if set_progress_:
+            set_progress_("Downloading")
+        success = download_mp3(url, output_dir, 1, 1, album, chapter_, artist_, year_, icon_)
+        if set_progress_:
+            if success:
+                set_progress_("Downloaded")
+            else:
+                set_progress_("Failed")
+    else:
+        if set_progress_:
+            set_progress_("Downloading")
+        success = download_mp4(url, output_dir, 1, 1, album, chapter_, artist_, year_, icon_)
+        if set_progress_:
+            if success:
+                set_progress_("Downloaded")
+            else:
+                set_progress_("Failed")
 
 def gui():
     import tkinter as tk
@@ -279,39 +305,10 @@ def gui():
     def start_download(is_mp3:bool):
         def run_download():
             try:
-                gui_url = get_url()
-                gui_dir = get_directory()
-                gui_album = get_album()
-                gui_artist = get_artist()
-                gui_year = get_year()
-                gui_icon_path = get_icon_path()
-
-                gui_set_chapters = get_set_chapters()
-                gui_chapter = get_chapter()
-
-                album = "Unknown"
-                if gui_album:
-                    album = gui_album
-
-                output = determine_output_folder(gui_dir, album)
-                if is_playlist(gui_url):
-                    if not gui_album:
-                        album = get_playlist_title(gui_url)
-                    process_playlist(gui_url, output, is_mp3, album, gui_artist, gui_year, gui_set_chapters, gui_icon_path, set_progress)
-                elif is_mp3:
-                    set_progress("Downloading")
-                    success = download_mp3(gui_url, output, 1, 1, album, gui_chapter, gui_artist, gui_year, gui_icon_path)
-                    if success:
-                        set_progress("Downloaded")
-                    else:
-                        set_progress("Failed")
-                else:
-                    set_progress("Downloading")
-                    success = download_mp4(gui_url, output, 1, 1, album, gui_chapter, gui_artist, gui_year, gui_icon_path)
-                    if success:
-                        set_progress("Downloaded")
-                    else:
-                        set_progress("Failed")
+                read_inputs(get_url(), is_mp3, output_dir_=get_directory(),
+                    album_=get_album(), artist_=get_artist(), year_=get_year(),
+                    chapter_=get_chapter(), set_chapters_=get_set_chapters(),
+                    icon_=get_icon_path(), set_progress_=set_progress)
             except Exception:
                 set_progress("Error :(")
         
@@ -479,18 +476,6 @@ def gui():
     image_progress = get_image(filename="progress.png")
     image_chapter = get_image(filename="track.png")
     image_heart = get_image(filename="heart.ico")
-    
-    # See here for all images: https://imgur.com/a/1DROK6r
-    # image_url = get_image(url="https://imgur.com/7JNryMI")
-    # image_dir = get_image(url="https://imgur.com/tu4nft0")
-    # image_album = get_image(url="https://imgur.com/mHVSuBo")
-    # image_artist = get_image(url="https://imgur.com/WdyNMye")
-    # image_year = get_image(url="https://imgur.com/47EUA4U")
-    # image_icon = get_image(url="https://imgur.com/eZR4zqG")
-    # image_download = get_image(url="https://imgur.com/pjQbxNz")
-    # image_progress = get_image(url="https://imgur.com/jK0fe1s")
-    # image_chapter = get_image(url="https://imgur.com/da8GeId")
-    # image_heart = get_image(url="https://imgur.com/egHLCTf")
 
     if image_url:
         image_label_url = tk.Label(window, image=image_url)
@@ -576,20 +561,9 @@ def main():
         sys.exit()
 
     try:
-        album = "Unknown"
-        if args.album:
-            album = args.album
-
-        output_dir = determine_output_folder(args.output, album)
-        if is_playlist(args.url):
-            if not args.album:
-                album = get_playlist_title(args.url)
-            process_playlist(args.url, output_dir, not args.video, album, args.artist, args.year, args.set_chapters, args.icon)
-        elif args.video:
-            download_mp4(args.url, output_dir, 1, 1, album, args.chapter, args.artist, args.year, args.icon)
-        else:
-            download_mp3(args.url, output_dir, 1, 1, album, args.chapter, args.artist, args.year, args.icon)
-
+        read_inputs(args.url, not args.video, output_dir_=args.output,
+            album_=args.album, artist_=args.artist, year_=args.year,
+            chapter_=args.chapter, set_chapters_=args.set_chapters, icon_=args.icon)
     except KeyboardInterrupt:
         log_progress(0, 0, "ABORTING", "")
         sys.exit()
