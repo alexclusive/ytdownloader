@@ -6,11 +6,23 @@ import re
 import json
 import eyed3
 from mutagen.mp4 import MP4, MP4Tags, MP4Cover
-from PIL import Image
+from PIL import Image, ImageTk
 from typing import Callable
 import threading
+import requests
+import io
 
 using_gui = False
+
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError: # MEIPASS is only set by pyinstaller, this is so it can run without being compiled
+        base_path = os.path.abspath(".")
+
+    full_path = os.path.join(base_path, relative_path)
+
+    return full_path
 
 def log_progress(item_num, total_items, state, title):
     if not using_gui:
@@ -372,83 +384,154 @@ def gui():
         if file_path:
             icon_var.set(file_path)
 
+    def get_image(filename=None, url=None):
+        try:
+            image = None
+            if filename == url:
+                return None
+            if filename and not url:
+                filename = resource_path("assets/") + filename
+                image = Image.open(filename)
+            elif url and not filename:
+                response = requests.get(url)
+                response.raise_for_status() # Error if not found
+                image = Image.open(io.BytesIO(response.content))
+            image = image.convert("RGBA") # Enable transparency
+            image.resize((32,32))
+            return ImageTk.PhotoImage(image)
+        except Exception:
+            return None
+
     window = tk.Tk()
     window.title("YTDownloader")
-    
-    main_row = 1
+    padding = 2
+
     # URL
     url_var = tk.StringVar()
-    url_label = tk.Label(window, text="URL")
     url_text = ttk.Entry(window, textvariable=url_var)
-    url_label.grid(row=main_row, column=1, columnspan=4)
-    url_text.grid(row=main_row+1, column=1, columnspan=4, sticky="EW")
-
-    settings_row = 5
-    info_all = tk.Label(window, text="General Settings")
-    info_all.grid(row=settings_row, column=1, columnspan=2)
+    url_text.grid(row=1, column=2, columnspan=2, sticky="EW", pady=padding)
     # Directory
-    directory_var = tk.StringVar()
-    directory_label = tk.Label(window, text="Directory")
-    directory_text = ttk.Entry(window, textvariable=directory_var)
     directory_button = ttk.Button(window, text="Browse", command=browse_directory_button)
-    directory_label.grid(row=settings_row+1, column=1, columnspan=2)
-    directory_text.grid(row=settings_row+2, column=1, sticky="EW")
-    directory_button.grid(row=settings_row+2, column=2, sticky="NESW")
+    directory_var = tk.StringVar()
+    directory_text = ttk.Entry(window, textvariable=directory_var)
+    directory_button.grid(row=2, column=2, sticky="EW", pady=padding)
+    directory_text.grid(row=2, column=3, sticky="EW", pady=padding)
     # Album
     album_name_var = tk.StringVar()
-    album_name_label = tk.Label(window, text="Album Name") # Sets album
+    album_name_label = tk.Label(window, text="Album")
     album_name_text = ttk.Entry(window, textvariable=album_name_var)
-    album_name_label.grid(row=settings_row+3, column=1, columnspan=2)
-    album_name_text.grid(row=settings_row+4, column=1, columnspan=2, sticky="EW")
+    album_name_label.grid(row=3, column=2)
+    album_name_text.grid(row=3, column=3, sticky="EW", pady=padding)
     # Artist
     artist_var = tk.StringVar()
-    artist_name_label = tk.Label(window, text="Artist Name")
+    artist_name_label = tk.Label(window, text="Artist")
     artist_name_text = ttk.Entry(window, textvariable=artist_var)
-    artist_name_label.grid(row=settings_row+5, column=1, columnspan=2)
-    artist_name_text.grid(row=settings_row+6, column=1, columnspan=2, sticky="EW")
+    artist_name_label.grid(row=4, column=2)
+    artist_name_text.grid(row=4, column=3, sticky="EW", pady=padding)
     # Year
     use_year_var = tk.BooleanVar(value=False)
     use_year_check = ttk.Checkbutton(window, text="Set Year?", variable=use_year_var)
     year_spinbox = ttk.Spinbox(window, from_=1900, to=2100)
     year_spinbox.set(datetime.now().year)
-    use_year_check.grid(row=settings_row+7, column=1)
-    year_spinbox.grid(row=settings_row+7, column=2, sticky="EW")
+    use_year_check.grid(row=5, column=2)
+    year_spinbox.grid(row=5, column=3, sticky="EW", pady=padding)
     # Image
-    icon_var = tk.StringVar()
-    icon_label = tk.Label(window, text="Icon")
-    icon_text = ttk.Entry(window, textvariable=icon_var)
     icon_button = ttk.Button(window, text="Browse", command=browse_icon_button)
-    icon_label.grid(row=settings_row+8, column=1, columnspan=2)
-    icon_text.grid(row=settings_row+9, column=1, sticky="EW")
-    icon_button.grid(row=settings_row+9, column=2, sticky="NESW")
+    icon_var = tk.StringVar()
+    icon_text = ttk.Entry(window, textvariable=icon_var)
+    icon_button.grid(row=6, column=2, sticky="EW", pady=padding)
+    icon_text.grid(row=6, column=3, sticky="EW", pady=padding)
 
-    info_optional = tk.Label(window, text="Playlist Settings")
-    info_optional.grid(row=settings_row, column=3, columnspan=2)
+    # Download
+    download_mp3_button = ttk.Button(window, text="Download MP3", command=download_button_mp3)
+    download_mp4_button = ttk.Button(window, text="Download MP4", command=download_button_mp4)
+    download_mp3_button.grid(row=1, column=5, sticky="NSEW", pady=padding)
+    download_mp4_button.grid(row=1, column=6, sticky="NSEW", pady=padding)
+    # Progress
+    progress_var = tk.StringVar(value="Progress N/A")
+    progress_label = tk.Label(window, textvariable=progress_var)
+    progress_label.grid(row=2, column=5, columnspan=2, sticky="NSEW", pady=padding)
+    # Playlist
+    info_optional = tk.Label(window, text="Playlist")
+    info_optional.grid(row=3, column=5, columnspan=2, sticky="SEW", pady=padding)
     # Set_Chapters
     set_chapters_var = tk.BooleanVar(value=True)
-    set_chapters_check = ttk.Checkbutton(window, text="Set Chapter Metadata?", variable=set_chapters_var)
-    set_chapters_check.grid(row=settings_row+1, column=3, columnspan=2)
-
-    info_optional = tk.Label(window, text="Non-Playlist Settings")
-    info_optional.grid(row=settings_row+3, column=3, columnspan=2)
+    set_chapters_check = ttk.Checkbutton(window, text="Set Chapters?", variable=set_chapters_var)
+    set_chapters_check.grid(row=4, column=5, columnspan=2, pady=padding)
+    # Non-Playlist
+    info_optional = tk.Label(window, text="Non-Playlist")
+    info_optional.grid(row=5, column=5, columnspan=2, sticky="SEW", pady=padding)
     # Chapter
     use_chapter_var = tk.BooleanVar(value=False)
     use_chapter_check = ttk.Checkbutton(window, text="Set Chapter?", variable=use_chapter_var)
-    chapter_spinbox = ttk.Spinbox(window, from_=0, to=sys.maxsize)
+    chapter_spinbox = ttk.Spinbox(window, from_=0, to=sys.maxsize, width=8)
     chapter_spinbox.set(1)
-    use_chapter_check.grid(row=settings_row+4, column=3, columnspan=2)
-    chapter_spinbox.grid(row=settings_row+5, column=3, columnspan=2, sticky="EW")
+    use_chapter_check.grid(row=6, column=5, pady=padding)
+    chapter_spinbox.grid(row=6, column=6, sticky="EW", pady=padding)
 
-    # Download and progress
-    progress_var = tk.StringVar(value="Progress N/A")
-    download_mp3_button = ttk.Button(window, text="Download MP3", command=download_button_mp3)
-    download_mp4_button = ttk.Button(window, text="Download MP4", command=download_button_mp4)
-    progress_label = tk.Label(window, textvariable=progress_var)
-    download_mp3_button.grid(row=settings_row+7, column=3, columnspan=2, sticky="NESW")
-    download_mp4_button.grid(row=settings_row+8, column=3, columnspan=2, sticky="NESW")
-    progress_label.grid(row=settings_row+9, column=3, columnspan=2, sticky="EW")
+    # Images
+    image_url = get_image(filename="url.png")
+    image_dir = get_image(filename="directory.png")
+    image_album = get_image(filename="album.png")
+    image_artist = get_image(filename="artist.png")
+    image_year = get_image(filename="calendar.png")
+    image_icon = get_image(filename="icon.png")
+    image_download = get_image(filename="download.png")
+    image_progress = get_image(filename="progress.png")
+    image_chapter = get_image(filename="track.png")
+    image_heart = get_image(filename="heart.ico")
+    
+    # See here for all images: https://imgur.com/a/1DROK6r
+    # image_url = get_image(url="https://imgur.com/7JNryMI")
+    # image_dir = get_image(url="https://imgur.com/tu4nft0")
+    # image_album = get_image(url="https://imgur.com/mHVSuBo")
+    # image_artist = get_image(url="https://imgur.com/WdyNMye")
+    # image_year = get_image(url="https://imgur.com/47EUA4U")
+    # image_icon = get_image(url="https://imgur.com/eZR4zqG")
+    # image_download = get_image(url="https://imgur.com/pjQbxNz")
+    # image_progress = get_image(url="https://imgur.com/jK0fe1s")
+    # image_chapter = get_image(url="https://imgur.com/da8GeId")
+    # image_heart = get_image(url="https://imgur.com/egHLCTf")
+
+    if image_url:
+        image_label_url = tk.Label(window, image=image_url)
+        image_label_url.grid(row=1, column=1, sticky="NSEW", pady=padding)
+    if image_dir:
+        image_label_dir = tk.Label(window, image=image_dir)
+        image_label_dir.grid(row=2, column=1, sticky="NSEW", pady=padding)
+    if image_album:
+        image_label_album = tk.Label(window, image=image_album)
+        image_label_album.grid(row=3, column=1, sticky="NSEW", pady=padding)
+    if image_artist:
+        image_label_artist = tk.Label(window, image=image_artist)
+        image_label_artist.grid(row=4, column=1, sticky="NSEW", pady=padding)
+    if image_year:
+        image_label_year = tk.Label(window, image=image_year)
+        image_label_year.grid(row=5, column=1, sticky="NSEW", pady=padding)
+    if image_icon:
+        image_label_icon = tk.Label(window, image=image_icon)
+        image_label_icon.grid(row=6, column=1, sticky="NSEW", pady=padding)
+    if image_download:
+        image_label_download = tk.Label(window, image=image_download)
+        image_label_download.grid(row=1, column=4, sticky="NSEW", pady=padding)
+    if image_progress:
+        image_label_progress = tk.Label(window, image=image_progress)
+        image_label_progress.grid(row=2, column=4, sticky="NSEW", pady=padding)
+    if image_chapter:
+        image_label_chapter_1 = tk.Label(window, image=image_chapter)
+        image_label_chapter_2 = tk.Label(window, image=image_chapter)
+        image_label_chapter_1.grid(row=4, column=4, sticky="NSEW", pady=padding)
+        image_label_chapter_2.grid(row=6, column=4, sticky="NSEW", pady=padding)
+    if image_heart:
+        window.iconphoto(False, image_heart)
 
     window.config(padx=5, pady=5)
+    for i in range(1, 7):
+        if i == 1 or i == 4:
+            window.grid_columnconfigure(i, minsize=40, weight=1)
+        else:
+            window.grid_columnconfigure(i, minsize=100, weight=1)
+
     window.mainloop()
 
 def usage():
@@ -459,7 +542,7 @@ def usage():
     print("  -a, --album           <NAME>  Album name for folder and metadata.")
     print("  -A, --artist          <NAME>  Artist name for metadata.")
     print("  -c, --chapter         <NUM>   Chapter number for non-playlist downloads.")
-    print("  -C, --set-chapters            Set chapters for metadata for MP3s in playlists.")
+    print("  -C, --set-chapters            Set chapters for metadata for items in playlists.")
     print("  -i, --icon            <PATH>  Path to ico/png/jpg/jpeg file to use as file icon/s.")
     print("  -o, --output          <PATH>  Base output folder (default: downloads/audio or downloads/video).")
     print("  -u  --url             <URL>   URL for youtube video or playlist.")
