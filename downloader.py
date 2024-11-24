@@ -13,6 +13,7 @@ import threading
 from typing import Callable
 
 using_gui = False
+stop_button_pressed = False
 
 def sanitise_text(text):
     return re.sub(r'[<>:"/\\|?*]', '_', text)
@@ -71,7 +72,7 @@ def get_video_title(video_url):
     except subprocess.CalledProcessError:
         return "Unknown"
 
-def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, artist=None, year=None, icon_path=None):
+def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, artist=None, year=None, icon_path=None, url=None):
     try:
         if is_mp3:
             audiofile_tmp = eyed3.load(file_path)
@@ -107,6 +108,8 @@ def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, art
                         )
                 if temp_icon_path and os.path.exists(temp_icon_path):
                     os.remove(temp_icon_path)
+            if url:
+                audiofile.tag.comments.set(url)
             audiofile.tag.save(version=(2, 3, 0))
         else:
             video_file = MP4(file_path)
@@ -122,6 +125,8 @@ def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, art
                 video_file.tags["\xa9ART"] = artist
             if year:
                 video_file.tags["\xa9day"] = str(year)
+            if url:
+                video_file.tags["\xa9cmt"] = url
 
             if icon_path and os.path.exists(icon_path):
                 temp_icon_path = None
@@ -142,76 +147,76 @@ def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, art
     except Exception as e:
         log_progress(0, 0, f"Failed to update metadata for {file_path}. {e}", "")
 
-def download_mp3(video_url, output_folder, item_num=None, total_items=None, album=None, chapter=None, artist=None, year=None, icon_path=None) -> bool:
+def download_mp3(video_url, output_folder, item_num=None, total_items=None, album=None, chapter=None, artist=None, year=None, icon_path=None, title=None) -> bool:
     try:
         if not album:
-            command = ["yt-dlp", "-e", video_url]
-            result = subprocess.run(command, capture_output=True, text=True)
-            album = result.stdout.strip()
+            album = get_video_title(video_url)
         
-        title = "Unknown"
-        if album and chapter:
-            title = f"{album} Chapter {chapter}"
+        title_set = "Unknown"
+        if title:
+            title_set = title
+        elif album and chapter:
+            title_set = f"{album} Chapter {chapter}"
         elif album:
-            title = album
+            title_set = album
         else:
-            title = get_video_title(video_url)
-        title = sanitise_text(title)
+            title_set = get_video_title(video_url)
+        title_set = sanitise_text(title_set)
 
-        log_progress(item_num, total_items, "Downloading", title)
+        log_progress(item_num, total_items, "Downloading", title_set)
         command = [
             "yt-dlp",
             "-q", "--no-warnings",
             "-x", "--audio-format", "mp3",
-            "-o", f"{output_folder}/{title}.%(ext)s",
+            "-o", f"{output_folder}/{title_set}.%(ext)s",
             video_url
         ]
         subprocess.run(command, check=True)
 
-        log_progress(item_num, total_items, "Updating metadata for", title)
-        file_path = f"{output_folder}/{title}.mp3"
-        update_metadata(True, file_path, title, album, chapter, artist, year, icon_path)
+        log_progress(item_num, total_items, "Updating metadata for", title_set)
+        file_path = f"{output_folder}/{title_set}.mp3"
+        update_metadata(True, file_path, title_set, album, chapter, artist, year, icon_path, video_url)
 
-        log_progress(item_num, total_items, "Completed", title)
+        log_progress(item_num, total_items, "Completed", title_set)
         return True
     except subprocess.CalledProcessError:
-        log_progress(item_num, total_items, "Failed processing", title)
+        log_progress(item_num, total_items, "Failed processing", title_set)
         return False
 
-def download_mp4(video_url, output_folder, item_num=None, total_items=None, album=None, chapter=None, artist=None, year=None, icon_path=None) -> bool:
+def download_mp4(video_url, output_folder, item_num=None, total_items=None, album=None, chapter=None, artist=None, year=None, icon_path=None, title=None) -> bool:
     try:
         if not album:
-            command = ["yt-dlp", "-e", video_url]
-            result = subprocess.run(command, capture_output=True, text=True)
-            album = result.stdout.strip()
+            album = get_video_title(video_url)
 
-        title = "Unknown"
-        if album and chapter:
-            title = f"{album} Episode {chapter}"
+        title_set = "Unknown"
+        if title:
+            title_set = title        
+        elif album and chapter:
+            title_set = f"{album} Episode {chapter}"
         elif album:
-            title = album
+            title_set = album
         else:
-            title = get_video_title(video_url)
-        title = sanitise_text(title)
+            title_set = get_video_title(video_url)
+        title_set = sanitise_text(title_set)
 
-        log_progress(item_num, total_items, "Downloading", title)
+        log_progress(item_num, total_items, "Downloading", title_set)
         command = [
             "yt-dlp",
             "-q", "--no-warnings",
             "-f", "bestaudio[ext=m4a]+bestvideo[ext=mp4]/best",
-            "-o", f"{output_folder}/{title}.%(ext)s",
+            "-o", f"{output_folder}/{title_set}.%(ext)s",
             video_url
         ]
         subprocess.run(command, check=True)
 
-        log_progress(item_num, total_items, "Updating metadata for", title)
-        file_path = f"{output_folder}/{title}.mp4"
-        update_metadata(False, file_path, title, album, chapter, artist, year, icon_path)
+        log_progress(item_num, total_items, "Updating metadata for", title_set)
+        file_path = f"{output_folder}/{title_set}.mp4"
+        update_metadata(False, file_path, title_set, album, chapter, artist, year, icon_path, video_url)
 
-        log_progress(item_num, total_items, "Completed processing for", title)
+        log_progress(item_num, total_items, "Completed processing for", title_set)
         return True
     except subprocess.CalledProcessError:
-        log_progress(item_num, total_items, "Failed processing", title)
+        log_progress(item_num, total_items, "Failed processing", title_set)
         return False
 
 def get_playlist_title(url) -> str:
@@ -255,17 +260,22 @@ def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None,
     
     total_items = len(urls)
     for num, url in enumerate(urls, start=1):
+        if stop_button_pressed:
+            break
+
         if set_progress_function:
             set_progress_function(f"{num} of {total_items}")
 
-        chap = None
-        if set_chapters:
-            chap = num
+        # always set chapter number, but if not set_chapter, dont put chapter in name
+        chap = num
+        title = None
+        if not set_chapters:
+            title = get_video_title(url)
 
         if dl_mp3:
-            download_mp3(url, output_dir, num, total_items, album, chap, artist, year, icon_path)
+            download_mp3(url, output_dir, num, total_items, album, chap, artist, year, icon_path, title)
         else:
-            download_mp4(url, output_dir, num, total_items, album, chap, artist, year, icon_path)
+            download_mp4(url, output_dir, num, total_items, album, chap, artist, year, icon_path, title)
 
 def read_inputs(url, is_mp3, output_dir_=None, album_=None, artist_=None, year_=None, chapter_=None, set_chapters_=None, icon_=None, set_progress_:Callable=None):
     output_dir = determine_output_folder(output_dir_, album_, is_mp3)
@@ -277,14 +287,17 @@ def read_inputs(url, is_mp3, output_dir_=None, album_=None, artist_=None, year_=
             album = get_playlist_title(url)
         process_playlist(url, output_dir, is_mp3, album, artist_, year_, set_chapters_, icon_, set_progress_)
         if set_progress_:
-            set_progress_("Downloaded")
+            if stop_button_pressed:
+                set_progress_("Stopped")
+            else:
+                set_progress_("Done!")
     elif is_mp3:
         if set_progress_:
             set_progress_("Downloading")
         success = download_mp3(url, output_dir, 1, 1, album, chapter_, artist_, year_, icon_)
         if set_progress_:
             if success:
-                set_progress_("Downloaded")
+                set_progress_("Done!")
             else:
                 set_progress_("Failed")
     else:
@@ -293,7 +306,7 @@ def read_inputs(url, is_mp3, output_dir_=None, album_=None, artist_=None, year_=
         success = download_mp4(url, output_dir, 1, 1, album, chapter_, artist_, year_, icon_)
         if set_progress_:
             if success:
-                set_progress_("Downloaded")
+                set_progress_("Done!")
             else:
                 set_progress_("Failed")
 
@@ -303,6 +316,7 @@ def gui():
     from datetime import datetime
 
     def start_download(is_mp3:bool):
+        global stop_button_pressed
         def run_download():
             try:
                 read_inputs(get_url(), is_mp3, output_dir_=get_directory(),
@@ -312,6 +326,7 @@ def gui():
             except Exception:
                 set_progress("Error :(")
         
+        stop_button_pressed = False
         thread = threading.Thread(target=run_download)
         thread.daemon = True  # Ensure the thread exits when the main program exits
         thread.start()
@@ -380,6 +395,10 @@ def gui():
         if file_path:
             icon_var.set(file_path)
 
+    def stop_button():
+        global stop_button_pressed
+        stop_button_pressed = True
+
     def get_image(filename=None, url=None):
         try:
             image = None
@@ -427,7 +446,7 @@ def gui():
     # Year
     use_year_var = tk.BooleanVar(value=False)
     use_year_check = ttk.Checkbutton(window, text="Set Year?", variable=use_year_var)
-    year_spinbox = ttk.Spinbox(window, from_=1900, to=2100)
+    year_spinbox = ttk.Spinbox(window, from_=0, to=2100)
     year_spinbox.set(datetime.now().year)
     use_year_check.grid(row=5, column=2)
     year_spinbox.grid(row=5, column=3, sticky="EW", pady=padding)
@@ -464,6 +483,10 @@ def gui():
     chapter_spinbox.set(1)
     use_chapter_check.grid(row=6, column=5, pady=padding)
     chapter_spinbox.grid(row=6, column=6, sticky="EW", pady=padding)
+
+    # Stop
+    stop_tasks = ttk.Button(window, text="Stop At Next Download", command=stop_button)
+    stop_tasks.grid(row=7, column=1, columnspan=6)
 
     # Images
     image_url = get_image(filename="url.png")

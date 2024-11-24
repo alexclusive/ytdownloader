@@ -1,9 +1,10 @@
 # YTDownloader
+YTDownloader will take a youtube video or playlist url and download it/them as MP3 or MP4, setting some metadata as explained below.
+
 I made this python application because I'm sick and tired of all those dumb websites that are terrible at the one thing they set out to do. Turns out it's actually really easy to download youtube videos. I haven't actually tested the max quality this is capable of - one way to find out!  
 
 ## Ways to Run
-There are two versions packed into one .exe file: command-line and gui. These both do the same thing, and I'll explain each feature a little later.  
-I don't know if this works on mac and frankly I do not care :)
+There are two versions, both can be used with either .exe. file, but `YTDownloader_gui` is set to not show the terminal while the GUI is showing.  
 
 ### Command-line
 To run this version of the program, run the program with more than zero command line arguments (e.g. `-h`).
@@ -35,7 +36,13 @@ To run using a GUI, run with no command line arguments. I made two versions of t
 <img src="./assets/readme/ui_v1.png" width=500>
 
 ## Functionality
-There are quite a few functions that the script can handle, most of them are optional. However, you will need to give a URL and filetype.
+There are quite a few functions that the script can handle, most of them are optional. However, you will need to give a URL and filetype.  
+List of metadata that can be set:
+ - Album
+ - Artist
+ - Year
+ - Track Number
+ - Comment (This is set to the url of the video)
 
 ### Required
 #### URL
@@ -64,7 +71,7 @@ Command line option: `-A <NAME>` or `--artist <NAME>`
 <img src="./assets/readme/ui_artist.png" width=400>
 
 #### Year
-What to set the `year` metadata to.  
+What to set the `year` metadata to (from 0 to 2100).  
 Command line option: `-y <YEAR>` or `--year <YEAR>`  
 <img src="./assets/readme/ui_calendar.png" width=400>
 
@@ -75,7 +82,8 @@ Command line option: `-i <PATH>` or `--icon <PATH>`
 
 ### Optional - Playlists
 #### Set Chapters
-Set this flag if you want to set the `track` metadata for each video in the playlist. i.e. first video is set as track 1, second as track 2, etc.  
+The `track` metadata in playlists will always be set (it's much easier to manually remove the track than to add a unique value for each file) - the first item is set as track `1`, the second as track `2`, etc.  
+If the `set-chapters` flag is set, playlist files will be titled `<title> Chapter <track>` for MP3, and `<title> Episode <track>` for MP4. If the flag is not set, the files will be titled `<title>`.
 Command line option: `-C` or `--set-chapters`  
 <img src="./assets/readme/ui_playlist_chapter.png" width=400>
 
@@ -90,11 +98,15 @@ Command line option: `-c <NUM>` or `--chapter <NUM>`
 Shows the progress of what you're downloading. Works with playlists (e.g. `3 of 20` / `6 or 10`), and also for non-playlists (e.g. `Downloading` / `Downloaded`).  
 <img src="./assets/readme/ui_progress.png" width=400>
 
+#### Stop At Next Download
+This is only in the GUI version. Clicking this button will stop a playlist download after the current video is processed. It's not feasible to stop during the processing of a video because the downloading is done in a third party library, and stopping before updating the metadata would leave one file non-homogenous to the others.
+<img src="./assets/readme/ui_stop_at_next_download.png" width=400>
+
 ## Compilation
 If you want to take the python code and build it in to an executable (useful if you wanna make some changes of your own), you can use PyInstaller - `pip install pyinstaller`. Here is a basic command you can use to compile:  
 
 ```bash
-pyinstaller downloader.py --onefile --name YTDownloader --icon "./assets/heart.ico" --add-data "./assets/*;assets"
+pyinstaller downloader.py --onefile --name YTDownloader --icon "./assets/heart.ico" --add-data "./assets/*;assets" --windowed
 ```
 
 This will give you an executable called `YTDownloader.exe` and put it into the `dist` folder.
@@ -108,3 +120,5 @@ This will give you an executable called `YTDownloader.exe` and put it into the `
   Icon for executable (different to icon for window title, which is set during execution). Must be `.ico`.
  - `--add-data`  
   Add additional data into the executable. Here I'm taking the local `./assets/*` directory, and making it available to the excecutable via `assets`. If you wanna see how that works, look at `resource_path()` in the code.
+ - `--windowed`
+  Doesn't bring up the console when running the GUI. However, this makes it difficult to see the state of things when running without the GUI.
