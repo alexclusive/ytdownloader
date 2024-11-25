@@ -66,7 +66,7 @@ def determine_output_folder(output_folder, album=None, is_mp3:bool=False):
 def get_video_title(video_url):
     try:
         command = ["yt-dlp", "-e", video_url]  # The '-e' option extracts the video title
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
         title = result.stdout.strip()
         return title
     except subprocess.CalledProcessError:
@@ -171,7 +171,7 @@ def download_mp3(video_url, output_folder, item_num=None, total_items=None, albu
             "-o", f"{output_folder}/{title_set}.%(ext)s",
             video_url
         ]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
         log_progress(item_num, total_items, "Updating metadata for", title_set)
         file_path = f"{output_folder}/{title_set}.mp3"
@@ -207,7 +207,7 @@ def download_mp4(video_url, output_folder, item_num=None, total_items=None, albu
             "-o", f"{output_folder}/{title_set}.%(ext)s",
             video_url
         ]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
         log_progress(item_num, total_items, "Updating metadata for", title_set)
         file_path = f"{output_folder}/{title_set}.mp4"
@@ -227,7 +227,7 @@ def get_playlist_title(url) -> str:
             "-J",  # Output JSON
             url
         ]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
         data = json.loads(result.stdout)
         return sanitise_text(data.get("title", "Unnamed Playlist"))
     except subprocess.CalledProcessError:
@@ -241,7 +241,7 @@ def get_playlist_urls(playlist_url) -> list[str]:
             "-J",  # Output JSON
             playlist_url
         ]
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
         data = json.loads(result.stdout)
         video_urls = [f"https://www.youtube.com/watch?v={entry['id']}" for entry in data['entries']]
         return video_urls
