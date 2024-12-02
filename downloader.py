@@ -71,6 +71,31 @@ def get_video_title(video_url):
         return title
     except subprocess.CalledProcessError:
         return "Unknown"
+    
+def get_video_thumbnail(video_url, output_folder):
+    try:
+        os.makedirs(output_folder, exist_ok=True)
+
+        command = [
+            "yt-dlp",
+            "--skip-download",
+            "--write-thumbnail",
+            "-o", f"{output_folder}/%(title)s.%(ext)s",
+            video_url
+        ]
+        subprocess.run(command, check=True)
+
+        for file in os.listdir(output_folder):
+            if file.endswith((".jpg", ".png", ".webp")):
+                print(f"Thumbnail downloaded: {os.path.join(output_folder, file)}")
+                return os.path.join(output_folder, file)
+
+        print("Thumbnail download failed: no file found.")
+        log_progress(0, 0, f"Failed to download thumbnail for {video_url}. No file found. {e}", "")
+        return None
+    except subprocess.CalledProcessError as e:
+        log_progress(0, 0, f"Failed to download thumbnail for {video_url}. {e}", "")
+        return None
 
 def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, artist=None, year=None, icon_path=None, url=None):
     try:
@@ -187,6 +212,9 @@ def download_mp4(video_url, output_folder, item_num=None, total_items=None, albu
     try:
         if not album:
             album = get_video_title(video_url)
+
+        if not icon_path:
+            icon_path = get_video_thumbnail(video_url, output_folder)
 
         title_set = "Unknown"
         if title:
