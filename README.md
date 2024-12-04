@@ -4,7 +4,7 @@ YTDownloader will take a youtube video or playlist url and download it/them as M
 I made this python application because I'm sick and tired of all those dumb websites that are terrible at the one thing they set out to do. Turns out it's actually really easy to download youtube videos. I haven't actually tested the max quality this is capable of - one way to find out!  
 
 ## Ways to Run
-There are two versions, both can be used with either .exe. file, but `YTDownloader_gui` is set to not show the terminal while the GUI is showing.  
+There are two versions, one for command line, and one for gui. The gui version can also be run with a single command line option for the directory (which is used in the context menu - more on that later).
 
 ### Command-line
 To run this version of the program, run the program with more than zero command line arguments (e.g. `-h`).
@@ -27,7 +27,7 @@ OPTIONS:
 ```
 
 ### GUI
-To run using a GUI, run with no command line arguments. I made two versions of this because my friend liked the retro look.  
+To run using a GUI, use the file with `_gui` in its name. I made two versions of this because my friend liked the retro look.  
 
 #### Retro
 <img src="./assets/readme/ui_retro.png" width=400>
@@ -95,7 +95,7 @@ Command line option: `-c <NUM>` or `--chapter <NUM>`
 
 ### Other
 #### Progress
-Shows the progress of what you're downloading. Works with playlists (e.g. `3 of 20` / `6 or 10`), and also for non-playlists (e.g. `Downloading` / `Downloaded`).  
+Shows the progress of what you're downloading. Works with playlists (e.g. `3 of 20` / `6 or 10`), and also for non-playlists (e.g. `Downloading` / `Done!`).  
 <img src="./assets/readme/ui_progress.png" width=400>
 
 #### Stop At Next Download
@@ -103,13 +103,14 @@ This is only in the GUI version. Clicking this button will stop a playlist downl
 <img src="./assets/readme/ui_stop_at_next_download.png" width=400>
 
 ## Compilation
-If you want to take the python code and build it in to an executable (useful if you wanna make some changes of your own), you can use PyInstaller - `pip install pyinstaller`. Here is a basic command you can use to compile:  
+If you want to take the python code and build it in to an executable (useful if you wanna make some changes of your own), you can use PyInstaller - `pip install pyinstaller`. Here is a basic command you can use to compile (run in `\ytdownloader\`):  
 
 ```bash
-pyinstaller downloader.py --onefile --name YTDownloader --icon "./assets/heart.ico" --add-data "./assets/*;assets" --windowed
+pyinstaller YTDownloader_gui.py --onefile --name YTDownloader_gui --icon "./assets/heart.ico" --add-data "./assets/*;assets" --windowed
+pyinstaller YTDownloader_cmd.py --onefile --name YTDownloader_cmd --icon "./assets/heart.ico" --add-data "./assets/*;assets"
 ```
 
-This will give you an executable called `YTDownloader.exe` and put it into the `dist` folder.
+This will give you an executable called `YTDownloader_gui.exe` and `YTDownloader_cmd.exe` and put it into the `dist` folder.
 
 ### PyInstaller Explanation
  - `--onefile`  
@@ -122,3 +123,8 @@ This will give you an executable called `YTDownloader.exe` and put it into the `
   Add additional data into the executable. Here I'm taking the local `./assets/*` directory, and making it available to the excecutable via `assets`. If you wanna see how that works, look at `resource_path()` in the code.
  - `--windowed`
   Doesn't bring up the console when running the GUI. However, this makes it difficult to see the state of things when running without the GUI.
+
+## Context Menu
+For instructions on how to implement, see `Add To Context Menu.md`.  
+
+If you right click in file explorer to open the context menu, there is an option called `YTDownloader Here`. You can either click this, or press the shortcut key `Y` to open the YTDownloader GUI with the output directory pre-filled.
