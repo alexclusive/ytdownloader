@@ -128,27 +128,3 @@ This will give you an executable called `YTDownloader_gui.exe` and `YTDownloader
 For instructions on how to implement, see `Add To Context Menu.md`.  
 
 If you right click in file explorer to open the context menu, there is an option called `YTDownloader Here`. You can either click this, or press the shortcut key `Y` to open the YTDownloader GUI with the output directory pre-filled.
-
-## Age-Restricted Videos
-We can't download age-restricted videos normally. However, you can set your credentials into a `.netrc` file:
-
-1. Create the file in the home (`~`) folder.
-    - Windows:  
-      Save make a new file named `.netrc` to your user directory.  
-      `C:\Users\<YourUsername>\`  
-      OR  
-      Use Git Bash and follow the Linux instructions below.
-    - Linux/Mac:  
-      ```bash
-      nano ~/.netrc
-      ```
-2. Add your credentials to `.netrc`.  
-    ```
-    machine youtube.com
-    login your-email@example.com
-    password yourpassword
-    ```
-3. Secure the `.netrc` so other users can't access it.  
-    ```bash
-    chmod 600 ~/.netrc
-    ```
