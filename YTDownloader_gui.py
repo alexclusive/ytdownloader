@@ -10,8 +10,47 @@ import subprocess
 import sys
 import threading
 from typing import Callable
+import ctypes
+import win32gui
+import win32con
+import win32api
 
-using_gui = False
+title = "YTDownloader"
+
+class TaskbarProgress:
+    def __init__(self):
+        self.hwnd = None  # Window handle
+
+    def set_progress(self, progress):
+        if self.hwnd:
+            # Use the Windows API to set taskbar progress
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(title)
+            ctypes.windll.user32.SendMessageW(self.hwnd, win32con.WM_APP + 104, 0, progress)
+
+    def clear_progress(self):
+        if self.hwnd:
+            ctypes.windll.user32.SendMessageW(self.hwnd, win32con.WM_APP + 104, 0, 0)
+
+    def wnd_proc(self, hwnd, msg, wparam, lparam):
+        if msg == win32con.WM_DESTROY:
+            win32gui.PostQuitMessage(0)
+        return win32gui.DefWindowProc(hwnd, msg, wparam, lparam)
+
+    def create_window(self):
+        wc = win32gui.WNDCLASS()
+        wc.lpfnWndProc = self.wnd_proc  # Set the window procedure (handling messages)
+        wc.lpszClassName = "MyAppWindow"
+        wc.hInstance = win32api.GetModuleHandle(None)
+
+        # Register the window class
+        class_atom = win32gui.RegisterClass(wc)
+
+        # Create the window
+        self.hwnd = win32gui.CreateWindow(class_atom, "MyApp", 0, 0, 0, 0, 0, 0, 0, 0, wc.hInstance, None)
+
+        # Start the window message loop
+        win32gui.PumpMessages()
+
 stop_button_pressed = False
 
 status_done = "Done!"
@@ -44,16 +83,16 @@ def is_playlist(url) -> bool:
     return "playlist" in url
 
 def log_progress(item_num, total_items, state, title):
-    if not using_gui:
-        if total_items == 0:
-            sys.stdout.write(state)
-        elif total_items == 1:
-            sys.stdout.write(f"\r{state}: {title}\033[K") # \033[K is an ANSI code to clear the whole cmd line
-        else:
-            sys.stdout.write(f"\r{state} item {item_num} of {total_items}: {title}\033[K")
-        sys.stdout.flush()
-        if "Completed" in state or "Fail" in state:
-            print()
+    pass
+        # if total_items == 0:
+            # sys.stdout.write(state)
+        # elif total_items == 1:
+            # sys.stdout.write(f"\r{state}: {title}\033[K") # \033[K is an ANSI code to clear the whole cmd line
+        # else:
+            # sys.stdout.write(f"\r{state} item {item_num} of {total_items}: {title}\033[K")
+        # sys.stdout.flush()
+        # if "Completed" in state or "Fail" in state:
+            # print()
 
 def determine_output_folder(output_folder, album=None, is_mp3:bool=False):
     base_folder = "downloads/video"
@@ -70,13 +109,20 @@ def determine_output_folder(output_folder, album=None, is_mp3:bool=False):
 
 def get_video_title(video_url):
     try:
-        command = ["yt-dlp", "-e", video_url]  # The '-e' option extracts the video title
+        command = ["yt-dlp", "--get-title", video_url]
         result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        title = result.stdout.strip()
-        return title
+        return result.stdout.strip()
     except subprocess.CalledProcessError:
         return "Unknown"
-    
+
+def get_video_artist(video_url):
+    try:
+        command = ["yt-dlp", "--get-uploader", video_url]
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return "Unknown"
+
 def get_video_thumbnail(video_url, output_folder):
     try:
         os.makedirs(output_folder, exist_ok=True)
@@ -85,22 +131,50 @@ def get_video_thumbnail(video_url, output_folder):
             "yt-dlp",
             "--skip-download",
             "--write-thumbnail",
-            "-o", f"{output_folder}/%(title)s.%(ext)s",
+            "--output", f"{output_folder}/%(title)s.%(ext)s",
             video_url
         ]
-        subprocess.run(command, check=True)
+        subprocess.run(command, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
         for file in os.listdir(output_folder):
             if file.endswith((".jpg", ".png", ".webp")):
-                print(f"Thumbnail downloaded: {os.path.join(output_folder, file)}")
                 return os.path.join(output_folder, file)
 
-        print("Thumbnail download failed: no file found.")
         log_progress(0, 0, f"Failed to download thumbnail for {video_url}. No file found. {e}", "")
         return None
     except subprocess.CalledProcessError as e:
         log_progress(0, 0, f"Failed to download thumbnail for {video_url}. {e}", "")
         return None
+
+def get_playlist_title(url) -> str:
+    try:
+        command = [
+            "yt-dlp",
+            "--flat-playlist",
+            "--dump-single-json",
+            url
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        data = json.loads(result.stdout)
+        return sanitise_text(data.get("title", "Unnamed Playlist"))
+    except subprocess.CalledProcessError:
+        return "Unnamed Playlist"
+
+def get_playlist_urls(playlist_url) -> list[str]:
+    try:
+        command = [
+            "yt-dlp",
+            "--flat-playlist",
+            "--dump-single-json",
+            playlist_url
+        ]
+        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
+        data = json.loads(result.stdout)
+        video_urls = [f"https://www.youtube.com/watch?v={entry['id']}" for entry in data['entries']]
+        return video_urls
+    except subprocess.CalledProcessError:
+        log_progress(0, 0, "Failed extracting playlist videos", "")
+        return []
 
 def update_metadata(is_mp3:bool, file_path, title, album=None, chapter=None, artist=None, year=None, icon_path:str=None, url=None):
     try:
@@ -193,13 +267,20 @@ def download_mp3(video_url, output_folder, item_num=None, total_items=None, albu
             title_set = get_video_title(video_url)
         title_set = sanitise_text(title_set)
 
+        if not artist:
+            artist = get_video_artist(video_url)
+
         log_progress(item_num, total_items, "Downloading", title_set)
         command = [
             "yt-dlp",
-            "-q", "--no-warnings",
-            "-x", "--audio-format", "mp3",
-            "-o", f"{output_folder}/{title_set}.%(ext)s",
-            video_url
+            video_url,
+            "--quiet",
+            "--no-warnings",
+            "--extract-audio",
+            "--audio-format", "mp3",
+            "--no-check-certificate",
+            "--no-age-limit",
+            "--output", f"{output_folder}/{title_set}.%(ext)s"
         ]
         subprocess.run(command, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
@@ -232,13 +313,19 @@ def download_mp4(video_url, output_folder, item_num=None, total_items=None, albu
             title_set = get_video_title(video_url)
         title_set = sanitise_text(title_set)
 
+        if not artist:
+            artist = get_video_artist(video_url)
+
         log_progress(item_num, total_items, "Downloading", title_set)
         command = [
             "yt-dlp",
-            "-q", "--no-warnings",
-            "-f", "bestaudio[ext=m4a]+bestvideo[ext=mp4]/best",
-            "-o", f"{output_folder}/{title_set}.%(ext)s",
-            video_url
+            video_url,
+            "--quiet",
+            "--no-warnings",
+            "--format", "bestaudio[ext=m4a]+bestvideo[ext=mp4]/best",
+            "--no-check-certificate",
+            "--age-limit", "100"
+            "--output", f"{output_folder}/{title_set}.%(ext)s"
         ]
         subprocess.run(command, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
@@ -251,36 +338,6 @@ def download_mp4(video_url, output_folder, item_num=None, total_items=None, albu
     except subprocess.CalledProcessError:
         log_progress(item_num, total_items, "Failed processing", title_set)
         return False
-
-def get_playlist_title(url) -> str:
-    try:
-        command = [
-            "yt-dlp",
-            "--flat-playlist",
-            "-J",  # Output JSON
-            url
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        data = json.loads(result.stdout)
-        return sanitise_text(data.get("title", "Unnamed Playlist"))
-    except subprocess.CalledProcessError:
-        return "Unnamed Playlist"
-
-def get_playlist_urls(playlist_url) -> list[str]:
-    try:
-        command = [
-            "yt-dlp",
-            "--flat-playlist",
-            "-J",  # Output JSON
-            playlist_url
-        ]
-        result = subprocess.run(command, capture_output=True, text=True, check=True, creationflags=subprocess.CREATE_NO_WINDOW)
-        data = json.loads(result.stdout)
-        video_urls = [f"https://www.youtube.com/watch?v={entry['id']}" for entry in data['entries']]
-        return video_urls
-    except subprocess.CalledProcessError:
-        log_progress(0, 0, "Failed extracting playlist videos", "")
-        return []
     
 def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None, year=None, set_chapters=False, icon_path=None, set_progress_function:Callable=None):
     if not album:
@@ -290,6 +347,10 @@ def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None,
     urls = get_playlist_urls(url)
     if not urls:
         return
+    
+    taskbar = TaskbarProgress()
+    taskbar.create_window()
+    taskbar.set_progress(0)
     
     total_items = len(urls)
     for num, url in enumerate(urls, start=1):
@@ -309,6 +370,7 @@ def process_playlist(url, output_dir=None, dl_mp3=None, album=None, artist=None,
             download_mp3(url, output_dir, num, total_items, album, chap, artist, year, icon_path, title)
         else:
             download_mp4(url, output_dir, num, total_items, album, chap, artist, year, icon_path, title)
+        taskbar.set_progress(int(num / total_items * 100))
 
 def read_inputs(url, is_mp3, output_dir_=None, album_=None, artist_=None, year_=None, chapter_=None, set_chapters_=None, icon_=None, set_progress_:Callable=None):
     output_dir = determine_output_folder(output_dir_, album_, is_mp3)
@@ -451,7 +513,7 @@ def gui(default_directory=None):
             return None
 
     window = tk.Tk()
-    window.title("YTDownloader")
+    window.title(title)
     padding = 2
 
     # URL
